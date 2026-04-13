@@ -1,0 +1,29 @@
+---
+title: "Untitled"
+format: html
+---
+
+Users can select scene 1 up to scene x.
+Summary of scenes/timeline maybe for what's happened in the movie up to scene x?
+For each group of scenes, network graph of characters (relative to movie happenings up to scene x).
+Can click on node of network graph to get character description, or branch (connection) to get description of relationships.
+Network graph will have branches based on romantic, familial, coworker/acquaintance, friend relationships.
+
+```{r}
+library(readr)
+library(tidyverse)
+
+adjacencies <- read_csv("data/love_actually_adjacencies.csv")
+
+appearances <- read_csv("data/love_actually_appearances.csv")
+
+appearances <- appearances |>
+  ## only keep rows with data, after 71 everything is NA b/c there are no more scenes
+  slice(1:71) |>
+  ## make every NA a 0, and all the TRUE (in every col except scenes) a 1
+  mutate(across(-scenes, ~if_else(is.na(.x), 0, 1)))
+  
+
+  
+```
+
