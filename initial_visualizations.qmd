@@ -9,7 +9,7 @@ For each group of scenes, network graph of characters (relative to movie happeni
 Can click on node of network graph to get character description, or branch (connection) to get description of relationships.
 Network graph will have branches based on romantic, familial, coworker/acquaintance, friend relationships.
 
-```{r}
+```{r data-setup}
 library(readr)
 library(tidyverse)
 
@@ -28,31 +28,67 @@ appearances <- appearances |>
          actors = gsub("_", " ", actors),
          actors = str_to_title(actors),
          actors = fct_reorder(actors, appearances == "1", sum))
+```
 
+
+Scatter plot of actors' scene appearances throughout the 71 scenes of Love Actually.
+```{r scene-appearances-plot}
 ggplot(data = appearances, 
-       aes(x = scene_number, 
-           y = actors, color = appearances)) +
+       aes(x = scene_number, y = actors, color = appearances)) +
   geom_point() +
   theme_minimal() +
   scale_color_manual(name = "Appearance:",
-                     values = c("0" = "lightcyan2", "1" = "mediumvioletred"),
+                     values = c("0" = "seashell3", "1" = "indianred1"),
                      labels = c("0" = "No", "1" = "Yes")) +
   labs(title = "Scene Appearances",
        x = "Scene Number",
-       y = "Actor")
-  
+       y = NULL)
+```  
 
-ggplot(data = appearances |>
+
+Add interactivity to scene appearances plot with `ggplotly`.
+```{r scene-appearances-interactive}
+library(plotly)
+scene_apps_plot <- ggplot(appearances, aes(x = scene_number, y = actors, color = appearances,
+                                           text = paste(" Scene", scene_number, ":",
+                                                         "<br>", scenes))) +
+  geom_point() +
+  theme_minimal() +
+  scale_color_manual(name = "Appearance:",
+                     values = c("0" = "seashell3", "1" = "indianred1"),
+                     labels = c("0" = "No", "1" = "Yes")) +
+  labs(title = "Scene Appearances",
+       x = "Scene Number",
+       y = NULL)
+
+ggplotly(scene_apps_plot, tooltip = "text")
+```
+
+
+Column plot of actors' total number of appearances (scenes appeared in) out of the 71 scenes in Love Actually.
+```{r total-appearances-plot}
+ggplot(appearances |>
          group_by(actors) |>
          filter(appearances == "1") |>
-         summarise(num_scenes = n()), 
-       aes(x = actors, y = 1, xend = actors, yend = num_scenes)) +
-  geom_segment(color = "thistle") +
-  geom_point(aes(y = num_scenes), color = "turquoise3") +
+         summarise(num_scenes = n()),
+       aes(x = actors, y = num_scenes)) +
+  geom_col(fill = "seashell2", color = "lavenderblush3") +
   coord_flip() +
+  geom_text(aes(label = num_scenes), hjust = -0.5) +
   theme_minimal() +
   labs(title = "Total Appearances",
-       x = "Actor",
+       x = NULL,
        y = "Number of Scenes")
 ```
+
+
+
+
+
+
+
+
+
+
+
 
