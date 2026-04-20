@@ -9,11 +9,10 @@ For each group of scenes, network graph of characters (relative to movie happeni
 Can click on node of network graph to get character description, or branch (connection) to get description of relationships.
 Network graph will have branches based on romantic, familial, coworker/acquaintance, friend relationships.
 
-```{r data-setup}
+Tidy appearances data.
+```{r appearances-data-setup}
 library(readr)
 library(tidyverse)
-
-adjacencies <- read_csv("data/love_actually_adjacencies.csv")
 
 appearances <- read_csv("data/love_actually_appearances.csv")
 
@@ -82,8 +81,49 @@ ggplot(appearances |>
 ```
 
 
+Tidy adjacencies data.
+```{r}
+adjacencies <- read_csv("data/love_actually_adjacencies.csv")
+
+actors_long <- adjacencies |>
+  pivot_longer(cols = -actors,
+               names_to = "actor2",
+               values_to = "weight") |>
+  rename(actor1 = actors) |>
+  filter(!is.na(weight)) |>
+  mutate(actor1 = str_to_title(gsub("_", " ", actor1)),
+         actor2 = str_to_title(gsub("_", " ", actor2)))
+```
 
 
+Build the nodes and edges data.
+```{r} 
+library(tidygraph)
+library(ggraph)
+
+nodes <- actors_long |>
+  filter(actor1 == actor2) |>
+  dplyr::select(name = actor1, total_scenes = weight)
+
+edges <- actors_long |>
+  filter(actor1 != actor2, weight > 0) |>
+  dplyr::select(from = actor1, to = actor2, weight)
+```
+
+
+```{r}
+network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+
+network_obj
+
+ggraph(network_obj, layout = "fr") +
+  geom_edge_link(aes(width = weight), alpha = 0.4) +
+  geom_node_point(aes(size = total_scenes)) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+  scale_edge_width(range = c(0.3, 2.5), name = "Shared scenes") +
+  scale_size(range = c(3, 10), name = "Total scenes") +
+  theme_void() 
+```
 
 
 
