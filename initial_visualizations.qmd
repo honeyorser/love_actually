@@ -10,7 +10,7 @@ Can click on node of network graph to get character description, or branch (conn
 Network graph will have branches based on romantic, familial, coworker/acquaintance, friend relationships.
 
 Tidy appearances data.
-```{r appearances-data-setup}
+```{r}
 library(readr)
 library(tidyverse)
 
@@ -31,7 +31,7 @@ appearances <- appearances |>
 
 
 Scatter plot of actors' scene appearances throughout the 71 scenes of Love Actually.
-```{r scene-appearances-plot}
+```{r}
 ggplot(data = appearances, 
        aes(x = scene_number, y = actors, color = appearances)) +
   geom_point() +
@@ -46,7 +46,7 @@ ggplot(data = appearances,
 
 
 Add interactivity to scene appearances plot with `ggplotly`.
-```{r scene-appearances-interactive}
+```{r}
 library(plotly)
 scene_apps_plot <- ggplot(appearances, aes(x = scene_number, y = actors, color = appearances,
                                            text = paste(" Scene", scene_number, ":",
@@ -65,7 +65,7 @@ ggplotly(scene_apps_plot, tooltip = "text")
 
 
 Column plot of actors' total number of appearances (scenes appeared in) out of the 71 scenes in Love Actually.
-```{r total-appearances-plot}
+```{r}
 ggplot(appearances |>
          group_by(actors) |>
          filter(appearances == "1") |>
@@ -103,7 +103,13 @@ library(ggraph)
 
 nodes <- actors_long |>
   filter(actor1 == actor2) |>
-  dplyr::select(name = actor1, total_scenes = weight)
+  dplyr::select(name = actor1, total_scenes = weight) |>
+  mutate(community = case_when(
+    name %in% c("Hugh Grant", "Emma Thompson", "Liam Neeson", 
+                "Alan Rickman", "Heike Makatsch", "Rowan Atkinson") ~ "community 1",
+    name %in% c("Kris Marshall", "Abdul Salis", "Colin Firth", "Keira Knightley") ~ "community 2",
+    .default = "floaters"
+  ))
 
 edges <- actors_long |>
   filter(actor1 != actor2, weight > 0) |>
@@ -111,17 +117,17 @@ edges <- actors_long |>
 ```
 
 
+Build network object and create network graph.
 ```{r}
 network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
 
-network_obj
-
 ggraph(network_obj, layout = "fr") +
-  geom_edge_link(aes(width = weight), alpha = 0.4) +
-  geom_node_point(aes(size = total_scenes)) +
-  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
-  scale_edge_width(range = c(0.3, 2.5), name = "Shared scenes") +
-  scale_size(range = c(3, 10), name = "Total scenes") +
+  geom_edge_link(aes(width = weight), alpha = 0.4, color = "rosybrown4", show.legend = FALSE) +
+  geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
+  geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
+  scale_edge_width(range = c(0.5, 3)) +
+  scale_size(range = c(15, 22)) +
+  scale_color_manual(values = c("community 1" = "mistyrose", "community 2" = "plum3", "floaters" = "honeydew")) +
   theme_void() 
 ```
 
