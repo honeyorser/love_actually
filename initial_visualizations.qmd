@@ -25,52 +25,56 @@ appearances <- appearances |>
   replace_na(list(appearances = 0)) |>
   mutate(appearances = as.factor(appearances),
          actors = gsub("_", " ", actors),
-         actors = str_to_title(actors),
-         actors = fct_reorder(actors, appearances == "1", sum))
+         actors = str_to_title(actors))
 ```
 
-
-Scatter plot of actors' scene appearances throughout the 71 scenes of Love Actually.
+Make segment/double-lollipop plot of scene appearances throughout the movie.
 ```{r}
-ggplot(data = appearances, 
-       aes(x = scene_number, y = actors, color = appearances)) +
-  geom_point() +
-  theme_minimal() +
-  scale_color_manual(name = "Appearance:",
-                     values = c("0" = "seashell3", "1" = "indianred1"),
-                     labels = c("0" = "No", "1" = "Yes")) +
-  labs(title = "Scene Appearances",
+scenes <- appearances |>
+  filter(appearances == 1) |>
+  arrange(actors, scene_number) |>
+  group_by(actors) |>
+  mutate(next_scene = lead(scene_number)) |> # next scene they appear in
+  ungroup() |>
+  filter(!is.na(next_scene))    
+
+order_of_appearance <- appearances |>
+  filter(appearances == 1) |>
+  group_by(actors) |>
+  summarize(first_scene = min(scene_number)) |>
+  arrange(desc(first_scene)) |> 
+  pull(actors)
+
+scene_appearances <- scene_appearances |>
+  mutate(actors = factor(actors, levels = order_of_appearance))
+
+appearance_points <- appearances |>
+  filter(appearances == 1) |>
+  mutate(actors = factor(actors, levels = order_of_appearance))
+
+ggplot() +
+  geom_segment(data = scenes,
+               aes(x = scene_number, xend = next_scene,
+                   y = actors, yend = actors), color = "olivedrab") +
+  geom_point(data = appearance_points, 
+             aes(x = scene_number, y = actors), color = "firebrick") +
+  labs(title = "All Scene Appearances",
        x = "Scene Number",
-       y = NULL)
-```  
-
-
-Add interactivity to scene appearances plot with `ggplotly`.
-```{r}
-library(plotly)
-scene_apps_plot <- ggplot(appearances, aes(x = scene_number, y = actors, color = appearances,
-                                           text = paste(" Scene", scene_number, ":",
-                                                         "<br>", scenes))) +
-  geom_point() +
-  theme_minimal() +
-  scale_color_manual(name = "Appearance:",
-                     values = c("0" = "seashell3", "1" = "indianred1"),
-                     labels = c("0" = "No", "1" = "Yes")) +
-  labs(title = "Scene Appearances",
-       x = "Scene Number",
-       y = NULL)
-
-ggplotly(scene_apps_plot, tooltip = "text")
+       y = NULL) +
+  theme_minimal()
 ```
 
 
 Column plot of actors' total number of appearances (scenes appeared in) out of the 71 scenes in Love Actually.
 ```{r}
-ggplot(appearances |>
-         group_by(actors) |>
-         filter(appearances == "1") |>
-         summarise(num_scenes = n()),
-       aes(x = actors, y = num_scenes)) +
+most_scenes_order <- appearances |>
+  mutate(actors = fct_reorder(actors, appearances == "1", sum)) |>
+  group_by(actors) |>
+  filter(appearances == "1") |>
+  summarise(num_scenes = n())
+  
+
+ggplot(most_scenes_order, aes(x = actors, y = num_scenes)) +
   geom_col(fill = "seashell2", color = "lavenderblush3") +
   coord_flip() +
   geom_text(aes(label = num_scenes), hjust = -0.5) +
