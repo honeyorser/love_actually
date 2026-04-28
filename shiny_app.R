@@ -1,7 +1,7 @@
 library(tidyverse)
 library(readr)
 
-## data tidying
+## data prep
 
 library(readr)
 library(tidyverse)
@@ -18,8 +18,6 @@ appearances <- appearances |>
   mutate(appearances = as.factor(appearances),
          actors = gsub("_", " ", actors),
          actors = str_to_title(actors))
-
-## static visualizations
 
 scenes <- appearances |>
   filter(appearances == 1) |>
@@ -43,10 +41,58 @@ appearance_points <- appearances |>
   filter(appearances == 1) |>
   mutate(actors = factor(actors, levels = order_of_appearance))
 
+nodes <- actors_long |>
+  filter(actor1 == actor2) |>
+  dplyr::select(name = actor1, total_scenes = weight) |>
+  mutate(community = case_when(
+    name %in% c("Hugh Grant", "Emma Thompson", "Liam Neeson", 
+                "Alan Rickman", "Heike Makatsch", "Rowan Atkinson") ~ "community 1",
+    name %in% c("Kris Marshall", "Abdul Salis", "Colin Firth", "Keira Knightley") ~ "community 2",
+    .default = "floaters"
+    ))
+
+edges <- actors_long |>
+  filter(actor1 != actor2, weight > 0) |>
+  dplyr::select(from = actor1, to = actor2, weight)
+
+## static visualizations
+
+library(plotly)
+
+s <- ggplot() +
+  geom_segment(data = scenes,
+               aes(x = scene_number, xend = next_scene,
+                   y = actors, yend = actors), color = "magenta1") +
+  geom_point(data = appearance_points, 
+             aes(x = scene_number, y = actors, 
+                 text = paste(scene_number)), 
+             color = "red1") +
+  labs(title = "All Scene Appearances",
+       x = "Scene Number",
+       y = NULL) +
+  theme_minimal()
+
+ggplotly(s, tooltip = "text")
+
+library(tidygraph)
+library(ggraph)
+
+network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+
+ggraph(network_obj, layout = "fr") +
+  geom_edge_link(aes(width = weight), alpha = 0.4, color = "snow4", show.legend = FALSE) +
+  geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
+  geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
+  scale_edge_width(range = c(0.5, 3)) +
+  scale_size(range = c(15, 22)) +
+  scale_color_manual(values = c("community 1" = "turquoise1", 
+                                "community 2" = "yellow", 
+                                "floaters" = "chartreuse")) +
+  theme_void() 
+
 ## shiny app
 
 library(shiny)
-library(plotly)
 
 actors <- appearances |>
   filter(appearances == 1) |>
@@ -69,7 +115,10 @@ ui <- fluidPage(
               ## add text output between plot and table: h3(textOutput("..."))
              h3(textOutput("actor_table_title")),
              tableOutput("actor_table")
-    )
+    ),
+    
+    tabPanel("Character Network",
+             plotOutput("char_network"))
   )
 )
 
@@ -109,6 +158,21 @@ server <- function(input, output, session) {
       theme_minimal()
     
     ggplotly(s, tooltip = "text")
+  })
+  
+  output$char_network <- renderPlot({
+    network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+    
+    ggraph(network_obj, layout = "fr") +
+      geom_edge_link(aes(width = weight), alpha = 0.4, color = "snow4", show.legend = FALSE) +
+      geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
+      geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
+      scale_edge_width(range = c(0.5, 3)) +
+      scale_size(range = c(15, 22)) +
+      scale_color_manual(values = c("community 1" = "turquoise1", 
+                                    "community 2" = "yellow", 
+                                    "floaters" = "chartreuse")) +
+      theme_void() 
   })
   
 }
