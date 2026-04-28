@@ -57,25 +57,22 @@ actors <- appearances |>
 
 ui <- fluidPage(
   titlePanel("Love, Actually Mapped"), ## Claude AI
-  sidebarLayout(
-    sidebarPanel(
-      
-      ## select an actor
-      selectInput("actor",
-                  label = "Select an actor:",
-                  choices = actors,
-                  selected = "Hugh Grant")
-    ),
-    
-    mainPanel(
-      plotlyOutput("appearances_seg"),
-      ## Claude AI: how to add table title
-        ## add text output between plot and table: h3(textOutput("...")) 
-      h3(textOutput("actor_table_title")), 
-      tableOutput("actor_table")
+  ## Claude AI: how to add taps to shiny app so users can switch between visualizations
+    ## tabsetPanel(tabPanel(), tabPanel(), etc.)
+  tabsetPanel(
+    tabPanel("Scene Appearances",
+              selectInput("actor",
+                          label = "Select an actor:",
+                          choices = actors),
+             plotlyOutput("appearances_seg"),
+             ## Claude AI: how to add table title
+              ## add text output between plot and table: h3(textOutput("..."))
+             h3(textOutput("actor_table_title")),
+             tableOutput("actor_table")
     )
   )
 )
+
 
 server <- function(input, output, session) {
   
