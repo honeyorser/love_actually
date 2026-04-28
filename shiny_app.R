@@ -90,6 +90,7 @@ ggraph(network_obj, layout = "fr") +
                                 "floaters" = "chartreuse")) +
   theme_void() 
 
+
 ## shiny app
 
 library(shiny)
@@ -109,7 +110,8 @@ ui <- fluidPage(
     tabPanel("Scene Appearances",
               selectInput("actor",
                           label = "Select an actor:",
-                          choices = actors),
+                          choices = actors,
+                          selected = actors[1]),
              plotlyOutput("appearances_seg"),
              ## Claude AI: how to add table title
               ## add text output between plot and table: h3(textOutput("..."))
@@ -118,6 +120,10 @@ ui <- fluidPage(
     ),
     
     tabPanel("Character Network",
+             checkboxGroupInput("actors",
+                                label = "Select at least two actors:",
+                                choices = actors,
+                                selected = actors[1:2]),
              plotOutput("char_network"))
   )
 )
@@ -168,7 +174,7 @@ server <- function(input, output, session) {
       geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
       geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
       scale_edge_width(range = c(0.5, 3)) +
-      scale_size(range = c(15, 22)) +
+      scale_size(range = c(22, 32)) +
       scale_color_manual(values = c("community 1" = "turquoise1", 
                                     "community 2" = "yellow", 
                                     "floaters" = "chartreuse")) +
