@@ -3,12 +3,6 @@ title: "Initial Visualizations"
 format: html
 ---
 
-Users can select scene 1 up to scene x.
-Summary of scenes/timeline maybe for what's happened in the movie up to scene x?
-For each group of scenes, network graph of characters (relative to movie happenings up to scene x).
-Can click on node of network graph to get character description, or branch (connection) to get description of relationships.
-Network graph will have branches based on romantic, familial, coworker/acquaintance, friend relationships.
-
 Tidy appearances data.
 ```{r}
 library(readr)
@@ -45,7 +39,7 @@ order_of_appearance <- appearances |>
   arrange(desc(first_scene)) |> 
   pull(actors)
 
-scene_appearances <- scene_appearances |>
+scenes <- scenes |>
   mutate(actors = factor(actors, levels = order_of_appearance))
 
 appearance_points <- appearances |>
@@ -126,12 +120,14 @@ Build network object and create network graph.
 network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
 
 ggraph(network_obj, layout = "fr") +
-  geom_edge_link(aes(width = weight), alpha = 0.4, color = "rosybrown4", show.legend = FALSE) +
+  geom_edge_link(aes(width = weight), alpha = 0.4, color = "midnightblue", show.legend = FALSE) +
   geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
   geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
   scale_edge_width(range = c(0.5, 3)) +
   scale_size(range = c(15, 22)) +
-  scale_color_manual(values = c("community 1" = "mistyrose", "community 2" = "plum3", "floaters" = "honeydew")) +
+  scale_color_manual(values = c("community 1" = "deeppink", 
+                                "community 2" = "yellow", 
+                                "floaters" = "chartreuse")) +
   theme_void() 
 ```
 
