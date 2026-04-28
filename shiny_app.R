@@ -43,45 +43,69 @@ appearance_points <- appearances |>
   filter(appearances == 1) |>
   mutate(actors = factor(actors, levels = order_of_appearance))
 
-ggplot() +
-  geom_segment(data = scenes,
-               aes(x = scene_number, xend = next_scene,
-                   y = actors, yend = actors), color = "olivedrab") +
-  geom_point(data = appearance_points, 
-             aes(x = scene_number, y = actors), color = "firebrick") +
-  labs(title = "All Scene Appearances",
-       x = "Scene Number",
-       y = NULL) +
-  theme_minimal()
-
 ## shiny app
 
 library(shiny)
 library(plotly)
 
+actors <- appearances |>
+  filter(appearances == 1) |>
+  group_by(actors) |>
+  summarize(first_scene = min(scene_number)) |>
+  arrange(first_scene) |> 
+  pull(actors)
+
 ui <- fluidPage(
+  titlePanel("Love, Actually Mapped"), ## Claude AI
   sidebarLayout(
     sidebarPanel(
       
+      ## select an actor
+      selectInput("actor",
+                  label = "Select an actor:",
+                  choices = actors,
+                  selected = "Hugh Grant")
     ),
     
     mainPanel(
-      plotlyOutput("appearances_seg")
+      plotlyOutput("appearances_seg"),
+      ## Claude AI: how to add table title
+        ## add text output between plot and table: h3(textOutput("...")) 
+      h3(textOutput("actor_table_title")), 
+      tableOutput("actor_table")
     )
   )
 )
 
 server <- function(input, output, session) {
   
+  appearances_reactive_df <- reactive({
+    appearance_points |>
+      filter(actors == input$actor) |>
+      select(`Scene Number` = scene_number, 
+             Description = scenes) |>
+      arrange(`Scene Number`)
+  })
+  
+  ## Claude AI: how to add table title
+    ## render title text: renderText({paste(...)})
+  output$actor_table_title <- renderText({
+    paste("Scenes Featuring", input$actor)
+  })
+  
+  output$actor_table <- renderTable({
+    appearances_reactive_df()
+  })
+  
   output$appearances_seg <- renderPlotly({
     s <- ggplot() +
       geom_segment(data = scenes,
                    aes(x = scene_number, xend = next_scene,
-                       y = actors, yend = actors), color = "olivedrab") +
+                       y = actors, yend = actors), color = "magenta1") +
       geom_point(data = appearance_points, 
                  aes(x = scene_number, y = actors, 
-                     text = paste0("Scene ", scene_number, "<br>", scenes)), 
-                 color = "firebrick") +
+                     text = paste(scene_number)), 
+                 color = "red1") +
       labs(title = "All Scene Appearances",
            x = "Scene Number",
            y = NULL) +
@@ -93,3 +117,4 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
