@@ -110,8 +110,7 @@ ui <- fluidPage(
     tabPanel("Scene Appearances",
               selectInput("actor",
                           label = "Select an actor:",
-                          choices = actors,
-                          selected = actors[1]),
+                          choices = actors),
              plotlyOutput("appearances_seg"),
              ## Claude AI: how to add table title
               ## add text output between plot and table: h3(textOutput("..."))
@@ -122,8 +121,7 @@ ui <- fluidPage(
     tabPanel("Character Network",
              checkboxGroupInput("actors",
                                 label = "Select at least two actors:",
-                                choices = actors,
-                                selected = actors[1:2]),
+                                choices = actors),
              plotOutput("char_network"))
   )
 )
@@ -166,8 +164,40 @@ server <- function(input, output, session) {
     ggplotly(s, tooltip = "text")
   })
   
+  ## Claude AI: how to require users to select at least 2 actors
+  last_valid_actors <- reactiveVal(character(0)) ## start with empty vector
+  
+  observeEvent(input$actors, {
+    n <- length(input$actors)
+    
+    if (n == 1) {
+      # Invalid — snap back to last valid state
+      showNotification("Please select at least 2 actors, or clear all to see the full network.",
+                       type = "warning", duration = 3)
+      updateCheckboxGroupInput(session, "actors",
+                               selected = last_valid_actors())
+    } else {
+      # 0 or 2+ are both valid — remember this state
+      last_valid_actors(input$actors)
+    }
+  }, ignoreNULL = FALSE)
+  
   output$char_network <- renderPlot({
-    network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+    
+    ## Claude AI: only proceed if at least 2 actors are selected
+    
+    ## decide whether to filter or show everything
+    if (length(input$actors) >= 2) {
+      filtered_nodes <- nodes |> filter(name %in% input$actors)
+      filtered_edges <- edges |> filter(from %in% input$actors,
+                                        to %in% input$actors)
+    } else {
+      # 0 selected (or briefly 1 during snap-back) — show full network
+      filtered_nodes <- nodes
+      filtered_edges <- edges
+    }
+    
+    network_obj <- tbl_graph(nodes = filtered_nodes, edges = filtered_edges, directed = FALSE)
     
     ggraph(network_obj, layout = "fr") +
       geom_edge_link(aes(width = weight), alpha = 0.4, color = "snow4", show.legend = FALSE) +
