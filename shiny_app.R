@@ -41,6 +41,17 @@ appearance_points <- appearances |>
   filter(appearances == 1) |>
   mutate(actors = factor(actors, levels = order_of_appearance))
 
+adjacencies <- read_csv("data/love_actually_adjacencies.csv")
+
+actors_long <- adjacencies |>
+  pivot_longer(cols = -actors,
+               names_to = "actor2",
+               values_to = "weight") |>
+  rename(actor1 = actors) |>
+  filter(!is.na(weight)) |>
+  mutate(actor1 = str_to_title(gsub("_", " ", actor1)),
+         actor2 = str_to_title(gsub("_", " ", actor2)))
+
 nodes <- actors_long |>
   filter(actor1 == actor2) |>
   dplyr::select(name = actor1, total_scenes = weight) |>
