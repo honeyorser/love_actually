@@ -1,6 +1,3 @@
-library(tidyverse)
-library(readr)
-
 ## data prep
 
 library(readr)
@@ -66,6 +63,10 @@ edges <- actors_long |>
   filter(actor1 != actor2, weight > 0) |>
   dplyr::select(from = actor1, to = actor2, weight)
 
+adjacency_matrix <- actors_long |>
+  pivot_wider(names_from = actor2, values_from = weight, values_fill = 0)|>
+  rename(Actor = actor1)
+
 ## static visualizations
 
 library(plotly)
@@ -105,6 +106,9 @@ ggraph(network_obj, layout = "fr") +
 ## shiny app
 
 library(shiny)
+library(plotly)
+library(tidygraph)
+library(ggraph)
 
 actors <- appearances |>
   filter(appearances == 1) |>
@@ -114,7 +118,7 @@ actors <- appearances |>
   pull(actors)
 
 ui <- fluidPage(
-  titlePanel("Love, Actually Mapped"), ## Claude AI
+  titlePanel("Love Actually, Mapped"), ## Claude AI
   ## Claude AI: how to add taps to shiny app so users can switch between visualizations
     ## tabsetPanel(tabPanel(), tabPanel(), etc.)
   tabsetPanel(
@@ -124,16 +128,26 @@ ui <- fluidPage(
                           choices = actors),
              plotlyOutput("appearances_seg"),
              ## Claude AI: how to add table title
-              ## add text output between plot and table: h3(textOutput("..."))
-             h3(textOutput("actor_table_title")),
+              ## add text output between plot and table: h4(textOutput("..."))
+             h4(textOutput("actor_table_title")),
              tableOutput("actor_table")
     ),
     
     tabPanel("Character Network",
-             checkboxGroupInput("actors",
-                                label = "Select at least two actors:",
-                                choices = actors),
-             plotOutput("char_network"))
+             fluidRow(
+               column(4,
+                      checkboxGroupInput("actors",
+                                         label = "Select at least two actors:",
+                                         choices = actors)),
+               column(8,
+                      h4(textOutput("adjacency_matrix_title")),
+                      div(style = "margin-left: -100px;",
+                          tableOutput("adjacency_matrix")))),
+             fluidRow(
+               column(12,
+                      plotOutput("char_network", height = "600px")))
+             
+    )
   )
 )
 
@@ -175,23 +189,32 @@ server <- function(input, output, session) {
     ggplotly(s, tooltip = "text")
   })
   
-  ## Claude AI: how to require users to select at least 2 actors
-  last_valid_actors <- reactiveVal(character(0)) ## start with empty vector
-  
+  ## Claude AI: how to let users to select at least 2 actors to see individual relationships
+  ## (network graph and adjacency table won't change unless 2+ selected)
   observeEvent(input$actors, {
-    n <- length(input$actors)
-    
-    if (n == 1) {
-      # Invalid — snap back to last valid state
-      showNotification("Please select at least 2 actors, or clear all to see the full network.",
-                       type = "warning", duration = 3)
-      updateCheckboxGroupInput(session, "actors",
-                               selected = last_valid_actors())
-    } else {
-      # 0 or 2+ are both valid — remember this state
-      last_valid_actors(input$actors)
+    if (length(input$actors) < 2) {
+      showNotification("Select 2 or more actors to see individual relationships.",
+                       type = "message", duration = 3)
     }
   }, ignoreNULL = FALSE)
+  
+  adjacency_matrix_reactive <- reactive({
+    if (length(input$actors) >= 2) {
+      adjacency_matrix |>
+        filter(Actor %in% input$actors) |>
+        select(Actor, all_of(input$actors))
+    } else {
+      adjacency_matrix
+    }
+  })
+  
+  output$adjacency_matrix_title <- renderText({
+    paste("Adjacency Matrix")
+  })
+  
+  output$adjacency_matrix <- renderTable({
+    adjacency_matrix_reactive()
+  }, digits = 0) # renderTable defaults to 2 decimal places for numeric cols
   
   output$char_network <- renderPlot({
     
