@@ -23,8 +23,6 @@ My project focuses on two related questions:
 
 ## Visualizations
 
-### Scene Appearances
-
 ```{r, include=FALSE}
 library(readr)
 library(tidyverse)
@@ -32,7 +30,7 @@ library(tidygraph)
 library(ggraph)
 ```
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 appearances <- read_csv("data/love_actually_appearances.csv")
 
 appearances <- appearances |>
@@ -67,23 +65,9 @@ scenes <- scenes |>
 appearance_points <- appearances |>
   filter(appearances == 1) |>
   mutate(actors = factor(actors, levels = order_of_appearance))
-
-ggplot() +
-  geom_segment(data = scenes,
-               aes(x = scene_number, xend = next_scene,
-                   y = actors, yend = actors), color = "magenta1") +
-  geom_point(data = appearance_points, 
-             aes(x = scene_number, y = actors), 
-             color = "red1") +
-  labs(title = "Scene Appearances",
-       x = "Scene Number",
-       y = NULL) +
-  theme_minimal()
 ```
 
-### Character Networks
-
-```{r}
+```{r, include=FALSE}
 adjacencies <- read_csv("data/love_actually_adjacencies.csv")
 
 actors_long <- adjacencies |>
@@ -114,7 +98,27 @@ adjacency_matrix <- actors_long |>
   rename(Actor = actor1)
 
 network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+```
 
+### Scene Appearances
+
+```{r, echo=FALSE}
+ggplot() +
+  geom_segment(data = scenes,
+               aes(x = scene_number, xend = next_scene,
+                   y = actors, yend = actors), color = "magenta1") +
+  geom_point(data = appearance_points, 
+             aes(x = scene_number, y = actors), 
+             color = "red1") +
+  labs(title = "Scene Appearances",
+       x = "Scene Number",
+       y = NULL) +
+  theme_minimal()
+```
+
+### Character Networks
+
+```{r, echo=FALSE}
 ggraph(network_obj, layout = "fr") +
   geom_edge_link(aes(width = weight), alpha = 0.4, color = "midnightblue", show.legend = FALSE) +
   geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
