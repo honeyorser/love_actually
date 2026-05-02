@@ -3,12 +3,126 @@ title: "README"
 format: gfm
 ---
 
-### Data
+## Data
 
-### Questions
+*Love Actually* (2003) is an ensemble romantic comedy set in London during the month leading up to Christmas. The film weaves together nine loosely interconnected love stories, each examining a different facet of love -- the one emotion common to all people. Because the film is structured as a set of parallel narratives connected by points of intersection, its character relationships are well represented as a network, motivating my network analysis approach in this project.
 
-### Graph Title
+I downloaded two CSV files from GitHub and then tidied the data in R for my analysis:
+
+- [**`appearances`**](https://github.com/fivethirtyeight/data/blob/master/love-actually/love_actually_appearances.csv) was originally a table indicating which characters appear in each of the scenes, plus a short description of each scene. Using `pivot_longer()`, I tidied the data into a long-format table with one (actor, scene) pair per row, included a `scene_number` column to give each scene a unique ID number, and added `appearances`: a binary indicator variable which is 1 if the character made an appearance in a given scene, and 0 otherwise.
+
+- [**`adjacencies`**](https://github.com/fivethirtyeight/data/blob/master/love-actually/love_actually_adjacencies.csv) is a 14 × 14 co-appearance matrix. The diagonal entries store each character's total scene count and the off-diagonal entries form the edge weights of the character network. From the adjacency matrix I derived two data frames: `nodes` (one per character, weighted by total scenes) and `edges` (one per character pair who share a scene, weighted by count).
+
+## Questions
+
+My project focuses on two related questions:
+
+- *Scene Appearances*: When does each character appear across the 71 scenes of which the film is comprised, and what does the rythm of their screen time look like?
+
+- *Character Networks*: Which characters share scenes with which others, and do those co-appearances cluster into the distinct storylines the film is built around?
+
+## Visualizations
+
+### Scene Appearances
+
+```{r, include=FALSE}
+library(readr)
+library(tidyverse)
+library(tidygraph)
+library(ggraph)
+```
+
+```{r, echo=FALSE}
+appearances <- read_csv("data/love_actually_appearances.csv")
+
+appearances <- appearances |>
+  ## only keep rows with data, after 71 everything is NA b/c there are no more scenes
+  slice(1:71) |>
+  mutate(scene_number = row_number()) |>
+  pivot_longer(cols = 2:15, names_to = "actors", values_to = "appearances") |>
+  mutate(appearances = if_else(appearances == "TRUE", 1, 0)) |>
+  replace_na(list(appearances = 0)) |>
+  mutate(appearances = as.factor(appearances),
+         actors = gsub("_", " ", actors),
+         actors = str_to_title(actors))
+
+scenes <- appearances |>
+  filter(appearances == 1) |>
+  arrange(actors, scene_number) |>
+  group_by(actors) |>
+  mutate(next_scene = lead(scene_number)) |>
+  ungroup() |>
+  filter(!is.na(next_scene))    
+
+order_of_appearance <- appearances |>
+  filter(appearances == 1) |>
+  group_by(actors) |>
+  summarize(first_scene = min(scene_number)) |>
+  arrange(desc(first_scene)) |> 
+  pull(actors)
+
+scenes <- scenes |>
+  mutate(actors = factor(actors, levels = order_of_appearance))
+
+appearance_points <- appearances |>
+  filter(appearances == 1) |>
+  mutate(actors = factor(actors, levels = order_of_appearance))
+
+ggplot() +
+  geom_segment(data = scenes,
+               aes(x = scene_number, xend = next_scene,
+                   y = actors, yend = actors), color = "magenta1") +
+  geom_point(data = appearance_points, 
+             aes(x = scene_number, y = actors), 
+             color = "red1") +
+  labs(title = "Scene Appearances",
+       x = "Scene Number",
+       y = NULL) +
+  theme_minimal()
+```
+
+### Character Networks
 
 ```{r}
+adjacencies <- read_csv("data/love_actually_adjacencies.csv")
 
+actors_long <- adjacencies |>
+  pivot_longer(cols = -actors,
+               names_to = "actor2",
+               values_to = "weight") |>
+  rename(actor1 = actors) |>
+  filter(!is.na(weight)) |>
+  mutate(actor1 = str_to_title(gsub("_", " ", actor1)),
+         actor2 = str_to_title(gsub("_", " ", actor2)))
+
+nodes <- actors_long |>
+  filter(actor1 == actor2) |>
+  dplyr::select(name = actor1, total_scenes = weight) |>
+  mutate(community = case_when(
+    name %in% c("Hugh Grant", "Emma Thompson", "Liam Neeson", 
+                "Alan Rickman", "Heike Makatsch", "Rowan Atkinson") ~ "community 1",
+    name %in% c("Kris Marshall", "Abdul Salis", "Colin Firth", "Keira Knightley") ~ "community 2",
+    .default = "floaters"
+    ))
+
+edges <- actors_long |>
+  filter(actor1 != actor2, weight > 0) |>
+  select(from = actor1, to = actor2, weight)
+
+adjacency_matrix <- actors_long |>
+  pivot_wider(names_from = actor2, values_from = weight, values_fill = 0)|>
+  rename(Actor = actor1)
+
+network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+
+ggraph(network_obj, layout = "fr") +
+  geom_edge_link(aes(width = weight), alpha = 0.4, color = "midnightblue", show.legend = FALSE) +
+  geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
+  geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
+  scale_edge_width(range = c(0.5, 3)) +
+  scale_size(range = c(15, 22)) +
+  scale_color_manual(values = c("community 1" = "violet", 
+                                "community 2" = "gold", 
+                                "floaters" = "mediumspringgreen")) +
+  theme_void() 
 ```
