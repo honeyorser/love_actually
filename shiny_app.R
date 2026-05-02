@@ -61,7 +61,7 @@ nodes <- actors_long |>
 
 edges <- actors_long |>
   filter(actor1 != actor2, weight > 0) |>
-  dplyr::select(from = actor1, to = actor2, weight)
+  select(from = actor1, to = actor2, weight)
 
 adjacency_matrix <- actors_long |>
   pivot_wider(names_from = actor2, values_from = weight, values_fill = 0)|>
@@ -92,14 +92,14 @@ library(ggraph)
 network_obj <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
 
 ggraph(network_obj, layout = "fr") +
-  geom_edge_link(aes(width = weight), alpha = 0.4, color = "snow4", show.legend = FALSE) +
+  geom_edge_link(aes(width = weight), alpha = 0.4, color = "midnightblue", show.legend = FALSE) +
   geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
   geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
   scale_edge_width(range = c(0.5, 3)) +
   scale_size(range = c(15, 22)) +
-  scale_color_manual(values = c("community 1" = "turquoise1", 
-                                "community 2" = "yellow", 
-                                "floaters" = "chartreuse")) +
+  scale_color_manual(values = c("community 1" = "violet", 
+                                "community 2" = "gold", 
+                                "floaters" = "mediumspringgreen")) +
   theme_void() 
 
 
@@ -109,6 +109,7 @@ library(shiny)
 library(plotly)
 library(tidygraph)
 library(ggraph)
+library(DT)
 
 actors <- appearances |>
   filter(appearances == 1) |>
@@ -200,9 +201,11 @@ server <- function(input, output, session) {
   
   adjacency_matrix_reactive <- reactive({
     if (length(input$actors) >= 2) {
+      row_order <- adjacency_matrix$Actor[adjacency_matrix$Actor %in% input$actors]
+      
       adjacency_matrix |>
         filter(Actor %in% input$actors) |>
-        select(Actor, all_of(input$actors))
+        select(Actor, all_of(row_order))
     } else {
       adjacency_matrix
     }
@@ -233,16 +236,18 @@ server <- function(input, output, session) {
     
     network_obj <- tbl_graph(nodes = filtered_nodes, edges = filtered_edges, directed = FALSE)
     
-    ggraph(network_obj, layout = "fr") +
-      geom_edge_link(aes(width = weight), alpha = 0.4, color = "snow4", show.legend = FALSE) +
+    ggraph(network_obj, layout = "kk") +
+      geom_edge_link(aes(width = weight), alpha = 0.4, color = "midnightblue", show.legend = FALSE) +
       geom_node_point(aes(color = community, size = total_scenes), show.legend = FALSE) +
-      geom_node_text(aes(label = gsub(" ", "\n", name)), size = 2.5) +
+      geom_node_text(aes(label = gsub(" ", "\n", name)), size = 5, fontface = "bold") +
       scale_edge_width(range = c(0.5, 3)) +
-      scale_size(range = c(22, 32)) +
-      scale_color_manual(values = c("community 1" = "turquoise1", 
-                                    "community 2" = "yellow", 
-                                    "floaters" = "chartreuse")) +
-      theme_void() 
+      scale_size(range = c(30, 50)) +
+      scale_color_manual(values = c("community 1" = "violet", 
+                                    "community 2" = "gold", 
+                                    "floaters" = "mediumspringgreen")) +
+      coord_cartesian(clip = "off") + ## Claude AI: formatting
+      theme_void() +
+      theme(plot.margin = margin(60, 60, 60, 60)) ## Claude AI: formatting
   })
   
 }
